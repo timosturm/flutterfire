@@ -51,6 +51,8 @@ public class FirebaseMessagingPlugin extends BroadcastReceiver
     private Context applicationContext;
     private Activity mainActivity;
 
+    private FirebaseApp firebaseApp;
+
     public static void registerWith(Registrar registrar) {
         FirebaseMessagingPlugin instance = new FirebaseMessagingPlugin();
         instance.setActivity(registrar.activity());
@@ -60,7 +62,10 @@ public class FirebaseMessagingPlugin extends BroadcastReceiver
 
     private void onAttachedToEngine(Context context, BinaryMessenger binaryMessenger) {
         this.applicationContext = context;
-        FirebaseApp.initializeApp(applicationContext);
+
+        // Do not create the default app here!
+//        FirebaseApp.initializeApp(applicationContext);
+
         channel = new MethodChannel(binaryMessenger, "plugins.flutter.io/firebase_messaging");
         final MethodChannel backgroundCallbackChannel =
                 new MethodChannel(binaryMessenger, "plugins.flutter.io/firebase_messaging_background");
@@ -166,7 +171,12 @@ public class FirebaseMessagingPlugin extends BroadcastReceiver
          *  `FcmDartService#initialized` is called by the Dart side when the plumbing for
          *  background message handling is complete.
          */
-        if ("FcmDartService#start".equals(call.method)) {
+
+        if ("FcmSetApplicationName".equals(call.method)) {
+            String applicationName = call.arguments.toString();
+            firebaseApp = FirebaseApp.getInstance(applicationName);
+        }
+        else if("FcmDartService#start".equals(call.method)) {
             long setupCallbackHandle = 0;
             long backgroundMessageHandle = 0;
             try {
@@ -187,7 +197,7 @@ public class FirebaseMessagingPlugin extends BroadcastReceiver
             FlutterFirebaseMessagingService.onInitialized();
             result.success(true);
         } else if ("configure".equals(call.method)) {
-            FirebaseInstanceId.getInstance()
+          FirebaseInstanceId.getInstance(firebaseApp)
                     .getInstanceId()
                     .addOnCompleteListener(
                             new OnCompleteListener<InstanceIdResult>() {
@@ -204,42 +214,45 @@ public class FirebaseMessagingPlugin extends BroadcastReceiver
                 sendMessageFromIntent("onLaunch", mainActivity.getIntent());
             }
             result.success(null);
-        } else if ("subscribeToTopic".equals(call.method)) {
-            String topic = call.arguments();
-            FirebaseMessaging.getInstance()
-                    .subscribeToTopic(topic)
-                    .addOnCompleteListener(
-                            new OnCompleteListener<Void>() {
-                                @Override
-                                public void onComplete(@NonNull Task<Void> task) {
-                                    if (!task.isSuccessful()) {
-                                        Exception e = task.getException();
-                                        Log.w(TAG, "subscribeToTopic error", e);
-                                        result.error("subscribeToTopic", e.getMessage(), null);
-                                        return;
-                                    }
-                                    result.success(null);
-                                }
-                            });
-        } else if ("unsubscribeFromTopic".equals(call.method)) {
-            String topic = call.arguments();
-            FirebaseMessaging.getInstance()
-                    .unsubscribeFromTopic(topic)
-                    .addOnCompleteListener(
-                            new OnCompleteListener<Void>() {
-                                @Override
-                                public void onComplete(@NonNull Task<Void> task) {
-                                    if (!task.isSuccessful()) {
-                                        Exception e = task.getException();
-                                        Log.w(TAG, "unsubscribeFromTopic error", e);
-                                        result.error("unsubscribeFromTopic", e.getMessage(), null);
-                                        return;
-                                    }
-                                    result.success(null);
-                                }
-                            });
-        } else if ("getToken".equals(call.method)) {
-            FirebaseInstanceId.getInstance()
+        }
+        // TODO Support this?
+//        else if ("subscribeToTopic".equals(call.method)) {
+//            String topic = call.arguments();
+//            FirebaseMessaging.getInstance()
+//                    .subscribeToTopic(topic)
+//                    .addOnCompleteListener(
+//                            new OnCompleteListener<Void>() {
+//                                @Override
+//                                public void onComplete(@NonNull Task<Void> task) {
+//                                    if (!task.isSuccessful()) {
+//                                        Exception e = task.getException();
+//                                        Log.w(TAG, "subscribeToTopic error", e);
+//                                        result.error("subscribeToTopic", e.getMessage(), null);
+//                                        return;
+//                                    }
+//                                    result.success(null);
+//                                }
+//                            });
+//        } else if ("unsubscribeFromTopic".equals(call.method)) {
+//            String topic = call.arguments();
+//            FirebaseMessaging.getInstance()
+//                    .unsubscribeFromTopic(topic)
+//                    .addOnCompleteListener(
+//                            new OnCompleteListener<Void>() {
+//                                @Override
+//                                public void onComplete(@NonNull Task<Void> task) {
+//                                    if (!task.isSuccessful()) {
+//                                        Exception e = task.getException();
+//                                        Log.w(TAG, "unsubscribeFromTopic error", e);
+//                                        result.error("unsubscribeFromTopic", e.getMessage(), null);
+//                                        return;
+//                                    }
+//                                    result.success(null);
+//                                }
+//                            });
+//        }
+        else if ("getToken".equals(call.method)) {
+          FirebaseInstanceId.getInstance(firebaseApp)
                     .getInstanceId()
                     .addOnCompleteListener(
                             new OnCompleteListener<InstanceIdResult>() {
@@ -260,7 +273,9 @@ public class FirebaseMessagingPlugin extends BroadcastReceiver
                         @Override
                         public void run() {
                             try {
-                                FirebaseInstanceId.getInstance().deleteInstanceId();
+                              FirebaseInstanceId
+                                      .getInstance(firebaseApp)
+                                      .deleteInstanceId();
                                 if (mainActivity != null) {
                                     mainActivity.runOnUiThread(
                                             new Runnable() {
@@ -285,13 +300,16 @@ public class FirebaseMessagingPlugin extends BroadcastReceiver
                         }
                     })
                     .start();
-        } else if ("autoInitEnabled".equals(call.method)) {
-            result.success(FirebaseMessaging.getInstance().isAutoInitEnabled());
-        } else if ("setAutoInitEnabled".equals(call.method)) {
-            Boolean isEnabled = (Boolean) call.arguments();
-            FirebaseMessaging.getInstance().setAutoInitEnabled(isEnabled);
-            result.success(null);
-        } else {
+        }
+        // TODO Support this?
+//        else if ("autoInitEnabled".equals(call.method)) {
+//            result.success(FirebaseMessaging.getInstance().isAutoInitEnabled());
+//        } else if ("setAutoInitEnabled".equals(call.method)) {
+//            Boolean isEnabled = (Boolean) call.arguments();
+//            FirebaseMessaging.getInstance().setAutoInitEnabled(isEnabled);
+//            result.success(null);
+//        }
+      else {
             result.notImplemented();
         }
     }
