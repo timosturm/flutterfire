@@ -100,6 +100,12 @@ class FirebaseMessaging {
     return _iosSettingsStreamController.stream;
   }
 
+  /// Tells the plugin to use a firebase app with name [name] instead of the
+  /// default firebase app.
+  void setApplicationName(String name) {
+    _channel.invokeMethod("FcmSetApplicationName", name);
+  }
+
   /// Sets up [MessageHandler] for incoming messages.
   void configure({
     MessageHandler onMessage,
