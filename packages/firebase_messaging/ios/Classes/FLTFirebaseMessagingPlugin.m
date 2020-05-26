@@ -49,16 +49,17 @@ static NSObject<FlutterPluginRegistrar> *_registrar;
 - (instancetype)initWithChannel:(FlutterMethodChannel *)channel {
   self = [super init];
 
-  if (self) {
-    _channel = channel;
-    _resumingFromBackground = NO;
-    if (![FIRApp appNamed:@"__FIRAPP_DEFAULT"]) {
-      NSLog(@"Configuring the default Firebase app...");
-      [FIRApp configure];
-      NSLog(@"Configured the default Firebase app %@.", [FIRApp defaultApp].name);
+   if (self) {
+      _channel = channel;
+      _resumingFromBackground = NO;
+        // Do not configure firebase at this point!
+      //if (![FIRApp appNamed:@"__FIRAPP_DEFAULT"]) {
+        //NSLog(@"Configuring the default Firebase app...");
+        //[FIRApp configure];
+        //NSLog(@"Configured the default Firebase app %@.", [FIRApp defaultApp].name);
+      //}
+      //[FIRMessaging messaging].delegate = self;
     }
-    [FIRMessaging messaging].delegate = self;
-  }
   return self;
 }
 
@@ -137,14 +138,29 @@ static NSObject<FlutterPluginRegistrar> *_registrar;
       [[UIApplication sharedApplication] registerForRemoteNotifications];
       result([NSNumber numberWithBool:YES]);
     }
-  } else if ([@"configure" isEqualToString:method]) {
+  }
+  else if ([@"FcmSetApplicationName" isEqualToString:method]) {
+      // Use our custom firebase app for messages.
+      NSString *topic = call.arguments;
+      //NSLog(@"Adding firebase app with name: %@\n", topic);
+      NSLog(@"Does the app exist?: %@ exists.", [FIRApp appNamed:topic]);
+      NSLog(@"All the firebase before apps: %@.",  [FIRApp allApps]);
+      [FIRApp configureWithOptions: [FIRApp appNamed:topic].options];
+      NSLog(@"All apps after: %@.", [FIRApp allApps]);
+      NSLog(@"Default app is now: %@.", [FIRApp defaultApp]);
+
+      [FIRMessaging messaging].delegate = self;
+    }
+  else if ([@"configure" isEqualToString:method]) {
     [FIRMessaging messaging].shouldEstablishDirectChannel = true;
     [[UIApplication sharedApplication] registerForRemoteNotifications];
     if (_launchNotification != nil && _launchNotification[kGCMMessageIDKey]) {
       [_channel invokeMethod:@"onLaunch" arguments:_launchNotification];
     }
     result(nil);
-  } else if ([@"subscribeToTopic" isEqualToString:method]) {
+  }
+  /* TODO Support this?
+   else if ([@"subscribeToTopic" isEqualToString:method]) {
     NSString *topic = call.arguments;
     [[FIRMessaging messaging] subscribeToTopic:topic
                                     completion:^(NSError *error) {
@@ -156,7 +172,9 @@ static NSObject<FlutterPluginRegistrar> *_registrar;
                                         completion:^(NSError *error) {
                                           result(getFlutterError(error));
                                         }];
-  } else if ([@"getToken" isEqualToString:method]) {
+  }
+  */
+  else if ([@"getToken" isEqualToString:method]) {
     [[FIRInstanceID instanceID]
         instanceIDWithHandler:^(FIRInstanceIDResult *_Nullable instanceIDResult,
                                 NSError *_Nullable error) {
@@ -167,7 +185,9 @@ static NSObject<FlutterPluginRegistrar> *_registrar;
             result(instanceIDResult.token);
           }
         }];
-  } else if ([@"deleteInstanceID" isEqualToString:method]) {
+  }
+  /* TODO Support this?
+  else if ([@"deleteInstanceID" isEqualToString:method]) {
     [[FIRInstanceID instanceID] deleteIDWithHandler:^void(NSError *_Nullable error) {
       if (error.code != 0) {
         NSLog(@"deleteInstanceID, error: %@", error);
@@ -184,7 +204,9 @@ static NSObject<FlutterPluginRegistrar> *_registrar;
     NSNumber *value = call.arguments;
     [FIRMessaging messaging].autoInitEnabled = value.boolValue;
     result(nil);
-  } else {
+  }
+  */
+  else {
     result(FlutterMethodNotImplemented);
   }
 }
